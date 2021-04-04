@@ -13,7 +13,7 @@ const server = express();
 const PORT = process.env.PORT || 3000;
 
 server.use(cors());
-
+server.use(express.static('./public'));
 server.get('/', (req, res) => {
   res.send('server is alive');
 });
