@@ -33,6 +33,13 @@ server.get('/weather', (req, res) => {
   });
   res.send(Weather.all);
 });
+server.get('*', (req, res) => {
+  let errObject = {
+    status: 500,
+    responseText: 'Sorry, something went wrong',
+  };
+  res.status(500).send(errObject);
+});
 
 const Place = function (locationData) {
   this.search_query = 'Lynwood';
