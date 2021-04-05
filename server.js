@@ -3,7 +3,7 @@
 // requireing express
 const express = require('express');
 //requiering dotenv config
-require('dotenv').config();
+
 //requiering cors
 const cors = require('cors');
 
@@ -11,19 +11,25 @@ const cors = require('cors');
 const server = express();
 //init the port from env file or the port 3000
 const PORT = process.env.PORT || 3000;
-
+require('dotenv').config();
 server.use(cors());
 
-server.get('/', (req, res) => {
+//routes
+server.get('/', rootRouteHandler);
+server.get('/location', locationRouteHandler);
+server.get('/weather', weatherRouteHandler);
+server.get('*', errorRouteHandler);
+
+function rootRouteHandler(req, res) {
   res.send('server is alive');
-});
-server.get('/location', (req, res) => {
+}
+function locationRouteHandler(req, res) {
   let locationData = require('./data/location.json');
   //   console.log('server.get   locationData', locationData);
   let cityData = new Place(locationData);
   res.send(cityData);
-});
-server.get('/weather', (req, res) => {
+}
+function weatherRouteHandler(req, res) {
   let getWeatherData = require('./data/weather.json');
 
   getWeatherData.data.forEach((item, index) => {
@@ -32,14 +38,14 @@ server.get('/weather', (req, res) => {
     let cityWeather = new Weather(description, vDate);
   });
   res.send(Weather.all);
-});
-server.get('*', (req, res) => {
+}
+function errorRouteHandler(req, res) {
   let errObject = {
     status: 500,
     responseText: 'Sorry, something went wrong',
   };
   res.status(500).send(errObject);
-});
+}
 
 const Place = function (locationData) {
   this.search_query = 'Lynwood';
