@@ -39,15 +39,30 @@ function locationRouteHandler(req, res) {
     res.send(locationObjectInctance);
   });
 }
+//https://api.weatherbit.io/v2.0/forecast/daily?city=Raleigh,NC&key=API_KEY
 function weatherRouteHandler(req, res) {
-  let getWeatherData = require('./data/weather.json');
+  // let getWeatherData = require('./data/weather.json');
+  // let all = getWeatherData.data.map((item, index) => {
+  //   let description = getWeatherData.data[index].weather.description;
+  //   let vDate = getWeatherData.data[index].valid_date;
+  //   return new Weather(description, vDate);
+  // res.send(all);
+  let cityQuery = req.query.search_query;
 
-  let all = getWeatherData.data.map((item, index) => {
-    let description = getWeatherData.data[index].weather.description;
-    let vDate = getWeatherData.data[index].valid_date;
-    return new Weather(description, vDate);
+  let key = process.env.WEATHER_API_KEY;
+  let weatherUrl = `https://api.weatherbit.io/v2.0/forecast/daily?city=${cityQuery}&key=${key}`;
+
+  superagent.get(weatherUrl).then(weatherData => {
+    // console.log(weatherData.body);
+    // res.send(weatherData.body.data[0].weather.description);
+    let weatherComingData = weatherData.body;
+    let all = weatherComingData.data.map((item, index) => {
+      let description = item.weather.description;
+      let vDate = item.valid_date;
+      return new Weather(description, vDate);
+    });
+    res.send(all);
   });
-  res.send(all);
 }
 function errorRouteHandler(req, res) {
   let errObject = {
