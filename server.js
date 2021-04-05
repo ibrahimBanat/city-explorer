@@ -13,7 +13,7 @@ const server = express();
 const PORT = process.env.PORT || 3000;
 require('dotenv').config();
 server.use(cors());
-
+const superagent = require('superagent');
 //routes
 server.get('/', rootRouteHandler);
 server.get('/location', locationRouteHandler);
@@ -23,11 +23,21 @@ server.get('*', errorRouteHandler);
 function rootRouteHandler(req, res) {
   res.send('server is alive');
 }
+
+/* https://city-explorer-website.herokuapp.com
+/location?city=amman */
 function locationRouteHandler(req, res) {
-  let locationData = require('./data/location.json');
-  //   console.log('server.get   locationData', locationData);
-  let cityData = new Place(locationData);
-  res.send(cityData);
+  // console.log(req.query);
+  let cityQuery = req.query.city;
+
+  let key = process.env.GEOCODE_API_KEY;
+  let locationUrl = `https://eu1.locationiq.com/v1/search.php?key=${key}&q=${cityQuery}&format=json`;
+
+  superagent.get(locationUrl).then(calledBackData => {
+    let geoLocationData = calledBackData.body;
+    let locationObjectInctance = new Place(cityQuery, geoLocationData);
+    res.send(locationObjectInctance);
+  });
 }
 function weatherRouteHandler(req, res) {
   let getWeatherData = require('./data/weather.json');
@@ -47,8 +57,8 @@ function errorRouteHandler(req, res) {
   res.status(500).send(errObject);
 }
 
-const Place = function (locationData) {
-  this.search_query = 'Lynwood';
+const Place = function (cityName, locationData) {
+  this.search_query = cityName;
   this.formatted_query = locationData[0].display_name;
   this.latitude = locationData[0].lat;
   this.longitude = locationData[0].lon;
