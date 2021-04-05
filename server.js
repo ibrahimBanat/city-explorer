@@ -32,12 +32,12 @@ function locationRouteHandler(req, res) {
 function weatherRouteHandler(req, res) {
   let getWeatherData = require('./data/weather.json');
 
-  getWeatherData.data.forEach((item, index) => {
+  let all = getWeatherData.data.map((item, index) => {
     let description = getWeatherData.data[index].weather.description;
     let vDate = getWeatherData.data[index].valid_date;
-    let cityWeather = new Weather(description, vDate);
+    return new Weather(description, vDate);
   });
-  res.send(Weather.all);
+  res.send(all);
 }
 function errorRouteHandler(req, res) {
   let errObject = {
@@ -56,9 +56,7 @@ const Place = function (locationData) {
 const Weather = function (desc, dat) {
   this.forecast = desc;
   this.time = dat;
-  Weather.all.push(this);
 };
-Weather.all = [];
 
 // listen to the server
 server.listen(PORT, () => {
