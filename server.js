@@ -18,6 +18,7 @@ const superagent = require('superagent');
 server.get('/', rootRouteHandler);
 server.get('/location', locationRouteHandler);
 server.get('/weather', weatherRouteHandler);
+server.get('/parks', parksRouteHandler);
 server.get('*', errorRouteHandler);
 
 function rootRouteHandler(req, res) {
@@ -41,20 +42,12 @@ function locationRouteHandler(req, res) {
 }
 //https://api.weatherbit.io/v2.0/forecast/daily?city=Raleigh,NC&key=API_KEY
 function weatherRouteHandler(req, res) {
-  // let getWeatherData = require('./data/weather.json');
-  // let all = getWeatherData.data.map((item, index) => {
-  //   let description = getWeatherData.data[index].weather.description;
-  //   let vDate = getWeatherData.data[index].valid_date;
-  //   return new Weather(description, vDate);
-  // res.send(all);
   let cityQuery = req.query.search_query;
 
   let key = process.env.WEATHER_API_KEY;
   let weatherUrl = `https://api.weatherbit.io/v2.0/forecast/daily?city=${cityQuery}&key=${key}`;
 
   superagent.get(weatherUrl).then(weatherData => {
-    // console.log(weatherData.body);
-    // res.send(weatherData.body.data[0].weather.description);
     let weatherComingData = weatherData.body;
     let all = weatherComingData.data.map((item, index) => {
       let description = item.weather.description;
@@ -62,6 +55,20 @@ function weatherRouteHandler(req, res) {
       return new Weather(description, vDate);
     });
     res.send(all);
+  });
+}
+// https://developer.nps.gov/api/v1/parks?
+// parkCode=acad&api_key=ScF1GDnYttsgWhQM4mZVRuqk436wro4peIVIfhv7
+function parksRouteHandler(req, res) {
+  // https://developer.nps.gov/api/v1/parks?parkCode=abcd&limit=50
+  let cityName = req.query.search_query;
+  let key = process.env.PARKS_API_KEY;
+  let locURL = `https://developer.nps.gov/api/v1/parks?q=${cityName}&api_key=${key}`;
+  superagent.get(locURL).then(parksData => {
+    let arr = parksData.body.data.map((item, index) => {
+      return new Park(item);
+    });
+    res.send(arr);
   });
 }
 function errorRouteHandler(req, res) {
@@ -81,6 +88,13 @@ const Place = function (cityName, locationData) {
 const Weather = function (desc, dat) {
   this.forecast = desc;
   this.time = dat;
+};
+const Park = function (parksData) {
+  this.name = parksData.fullName;
+  this.address = `${parksData.addresses[0].line1}, ${parksData.addresses[0].stateCode}, ${parksData.addresses[0].city}`;
+  this.fee = parksData.entranceFees[0].cost;
+  this.description = parksData.description;
+  this.url = parksData.url;
 };
 
 // listen to the server
