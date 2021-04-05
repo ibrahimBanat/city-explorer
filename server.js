@@ -3,7 +3,7 @@
 // requireing express
 const express = require('express');
 //requiering dotenv config
-require('dotenv').config();
+
 //requiering cors
 const cors = require('cors');
 
@@ -11,38 +11,76 @@ const cors = require('cors');
 const server = express();
 //init the port from env file or the port 3000
 const PORT = process.env.PORT || 3000;
-
+require('dotenv').config();
 server.use(cors());
+const superagent = require('superagent');
+//routes
+server.get('/', rootRouteHandler);
+server.get('/location', locationRouteHandler);
+server.get('/weather', weatherRouteHandler);
+server.get('/parks', parksRouteHandler);
+server.get('*', errorRouteHandler);
 
-server.get('/', (req, res) => {
+function rootRouteHandler(req, res) {
   res.send('server is alive');
-});
-server.get('/location', (req, res) => {
-  let locationData = require('./data/location.json');
-  //   console.log('server.get   locationData', locationData);
-  let cityData = new Place(locationData);
-  res.send(cityData);
-});
-server.get('/weather', (req, res) => {
-  let getWeatherData = require('./data/weather.json');
+}
 
-  getWeatherData.data.forEach((item, index) => {
-    let description = getWeatherData.data[index].weather.description;
-    let vDate = getWeatherData.data[index].valid_date;
-    let cityWeather = new Weather(description, vDate);
+/* https://city-explorer-website.herokuapp.com
+/location?city=amman */
+function locationRouteHandler(req, res) {
+  // console.log(req.query);
+  let cityQuery = req.query.city;
+
+  let key = process.env.GEOCODE_API_KEY;
+  let locationUrl = `https://eu1.locationiq.com/v1/search.php?key=${key}&q=${cityQuery}&format=json`;
+
+  superagent.get(locationUrl).then(calledBackData => {
+    let geoLocationData = calledBackData.body;
+    let locationObjectInctance = new Place(cityQuery, geoLocationData);
+    res.send(locationObjectInctance);
   });
-  res.send(Weather.all);
-});
-server.get('*', (req, res) => {
+}
+//https://api.weatherbit.io/v2.0/forecast/daily?city=Raleigh,NC&key=API_KEY
+function weatherRouteHandler(req, res) {
+  let cityQuery = req.query.search_query;
+
+  let key = process.env.WEATHER_API_KEY;
+  let weatherUrl = `https://api.weatherbit.io/v2.0/forecast/daily?city=${cityQuery}&key=${key}`;
+
+  superagent.get(weatherUrl).then(weatherData => {
+    let weatherComingData = weatherData.body;
+    let all = weatherComingData.data.map((item, index) => {
+      let description = item.weather.description;
+      let vDate = item.valid_date;
+      return new Weather(description, vDate);
+    });
+    res.send(all);
+  });
+}
+// https://developer.nps.gov/api/v1/parks?
+// parkCode=acad&api_key=ScF1GDnYttsgWhQM4mZVRuqk436wro4peIVIfhv7
+function parksRouteHandler(req, res) {
+  // https://developer.nps.gov/api/v1/parks?parkCode=abcd&limit=50
+  let cityName = req.query.search_query;
+  let key = process.env.PARKS_API_KEY;
+  let locURL = `https://developer.nps.gov/api/v1/parks?q=${cityName}&api_key=${key}`;
+  superagent.get(locURL).then(parksData => {
+    let arr = parksData.body.data.map((item, index) => {
+      return new Park(item);
+    });
+    res.send(arr);
+  });
+}
+function errorRouteHandler(req, res) {
   let errObject = {
     status: 500,
     responseText: 'Sorry, something went wrong',
   };
   res.status(500).send(errObject);
-});
+}
 
-const Place = function (locationData) {
-  this.search_query = 'Lynwood';
+const Place = function (cityName, locationData) {
+  this.search_query = cityName;
   this.formatted_query = locationData[0].display_name;
   this.latitude = locationData[0].lat;
   this.longitude = locationData[0].lon;
@@ -50,9 +88,14 @@ const Place = function (locationData) {
 const Weather = function (desc, dat) {
   this.forecast = desc;
   this.time = dat;
-  Weather.all.push(this);
 };
-Weather.all = [];
+const Park = function (parksData) {
+  this.name = parksData.fullName;
+  this.address = `${parksData.addresses[0].line1}, ${parksData.addresses[0].stateCode}, ${parksData.addresses[0].city}`;
+  this.fee = parksData.entranceFees[0].cost;
+  this.description = parksData.description;
+  this.url = parksData.url;
+};
 
 // listen to the server
 server.listen(PORT, () => {
