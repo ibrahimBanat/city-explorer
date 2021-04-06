@@ -1,5 +1,5 @@
 'use strict';
-
+require('dotenv').config();
 // requireing express
 const express = require('express');
 //requiering dotenv config
@@ -7,11 +7,14 @@ const express = require('express');
 //requiering cors
 const cors = require('cors');
 
+//requiering the postgres sql
+const pg = require('pg');
 //asssigning server with express
 const server = express();
 //init the port from env file or the port 3000
 const PORT = process.env.PORT || 3000;
-require('dotenv').config();
+const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
+
 server.use(cors());
 const superagent = require('superagent');
 //routes
@@ -30,15 +33,45 @@ function rootRouteHandler(req, res) {
 function locationRouteHandler(req, res) {
   // console.log(req.query);
   let cityQuery = req.query.city;
+  //let exists = chechLoaction(cityQuery);
+  //let exists = await getLoctionData(cityQuery);
 
-  let key = process.env.GEOCODE_API_KEY;
-  let locationUrl = `https://eu1.locationiq.com/v1/search.php?key=${key}&q=${cityQuery}&format=json`;
+  let SQL = `SELECT * FROM locations WHERE search_query=$1;`;
+  client.query(SQL, [cityQuery]).then(result => {
+    //console.log('ffffffffffffffffffffff', result);
 
-  superagent.get(locationUrl).then(calledBackData => {
-    let geoLocationData = calledBackData.body;
-    let locationObjectInctance = new Place(cityQuery, geoLocationData);
-    res.send(locationObjectInctance);
+    if (result.rows.length > 0) {
+      //database
+
+      console.log('exists');
+      res.send(result.rows[0]);
+    } else {
+      console.log('not exists');
+      //api
+      let key = process.env.GEOCODE_API_KEY;
+      let locationUrl = `https://eu1.locationiq.com/v1/search.php?key=${key}&q=${cityQuery}&format=json`;
+
+      superagent.get(locationUrl).then(calledBackData => {
+        let geoLocationData = calledBackData.body;
+        let locationObjectInctance = new Place(cityQuery, geoLocationData);
+        saveDatabase(locationObjectInctance);
+        res.send(locationObjectInctance);
+      });
+    }
   });
+}
+
+function saveDatabase(locationObjectInctance) {
+  let SQL = `INSERT INTO locations (search_query, formatted_query, latitude, longitude) VALUES ($1, $2, $3, $4) RETURNING *;`;
+  client
+    .query(SQL, [
+      locationObjectInctance.search_query,
+      locationObjectInctance.formatted_query,
+      locationObjectInctance.latitude,
+      locationObjectInctance.longitude,
+    ])
+    .then(result => result)
+    .catch(error => error);
 }
 //https://api.weatherbit.io/v2.0/forecast/daily?city=Raleigh,NC&key=API_KEY
 function weatherRouteHandler(req, res) {
@@ -98,6 +131,8 @@ const Park = function (parksData) {
 };
 
 // listen to the server
-server.listen(PORT, () => {
-  console.log(`server is running on http://localhost:${PORT}`);
+client.connect().then(() => {
+  server.listen(PORT, () => {
+    console.log(`server is running on http://localhost:${PORT}`);
+  });
 });
