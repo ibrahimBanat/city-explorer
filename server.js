@@ -15,9 +15,9 @@ const server = express();
 const PORT = process.env.PORT || 3000;
 const client = new pg.Client({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  // ssl: {
+  //   rejectUnauthorized: false,
+  // },
 });
 
 server.use(cors());
@@ -27,6 +27,7 @@ server.get('/', rootRouteHandler);
 server.get('/location', locationRouteHandler);
 server.get('/weather', weatherRouteHandler);
 server.get('/parks', parksRouteHandler);
+server.get('/movies', moviesRouteHandler);
 server.get('*', errorRouteHandler);
 
 function rootRouteHandler(req, res) {
@@ -109,6 +110,20 @@ function parksRouteHandler(req, res) {
     res.send(arr);
   });
 }
+
+function moviesRouteHandler(req, res) {
+  // https://api.themoviedb.org/3/movie/550?api_key=73b93cdfca2e825942947127fcf95717
+  let cityQuery = req.query.search_query;
+  let key = process.env.MOVIE_API_KEY;
+  let moviesURL = `https://api.themoviedb.org/3/search/movie?api_key=${key}&query=${cityQuery}`;
+  superagent.get(moviesURL).then(moviesData => {
+    let moviesArray = moviesData.body.results.map(item => {
+      return new Movie(item);
+    });
+    res.send(moviesArray);
+  });
+}
+
 function errorRouteHandler(req, res) {
   let errObject = {
     status: 500,
@@ -133,6 +148,16 @@ const Park = function (parksData) {
   this.fee = parksData.entranceFees[0].cost;
   this.description = parksData.description;
   this.url = parksData.url;
+};
+
+const Movie = function (moviesData) {
+  this.title = moviesData.title;
+  this.overview = moviesData.overview;
+  this.average_votes = moviesData.vote_average;
+  this.total_votes = moviesData.vote_count;
+  this.image_url = moviesData.backdrop_path;
+  this.popularity = moviesData.popularity;
+  this.released_on = moviesData.release_date;
 };
 
 // listen to the server
