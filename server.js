@@ -22,12 +22,14 @@ const client = new pg.Client({
 
 server.use(cors());
 const superagent = require('superagent');
+const { search } = require('superagent');
 //routes
 server.get('/', rootRouteHandler);
 server.get('/location', locationRouteHandler);
 server.get('/weather', weatherRouteHandler);
 server.get('/parks', parksRouteHandler);
 server.get('/movies', moviesRouteHandler);
+server.get('/yelp', yelpRouteHndler);
 server.get('*', errorRouteHandler);
 
 function rootRouteHandler(req, res) {
@@ -123,6 +125,21 @@ function moviesRouteHandler(req, res) {
     res.send(moviesArray);
   });
 }
+function yelpRouteHndler(req, res) {
+  let city = req.query.search_query;
+  let key = process.env.YELP_API_KEY;
+  let yelpUrl = `https://api.yelp.com/v3/businesses/search?term=resturant&location=${city}`;
+
+  superagent
+    .get(yelpUrl)
+    .set('Authorization', `Bearer ${key}`)
+    .then(yelpItem => {
+      let yelpResponse = yelpItem.body.businesses.map(obj => {
+        return new Yelp(obj);
+      });
+      res.send(yelpResponse);
+    });
+}
 
 function errorRouteHandler(req, res) {
   let errObject = {
@@ -158,6 +175,13 @@ const Movie = function (moviesData) {
   this.image_url = moviesData.backdrop_path;
   this.popularity = moviesData.popularity;
   this.released_on = moviesData.release_date;
+};
+const Yelp = function (yelpData) {
+  this.name = yelpData.name;
+  this.image_url = yelpData.image_url;
+  this.price = yelpData.price;
+  this.rating = yelpData.rating;
+  this.url = yelpData.url;
 };
 
 // listen to the server
