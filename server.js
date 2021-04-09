@@ -51,10 +51,8 @@ function locationRouteHandler(req, res) {
     if (result.rows.length > 0) {
       //database
 
-      console.log('exists');
       res.send(result.rows[0]);
     } else {
-      console.log('not exists');
       //api
       let key = process.env.GEOCODE_API_KEY;
       let locationUrl = `https://eu1.locationiq.com/v1/search.php?key=${key}&q=${cityQuery}&format=json`;
@@ -128,7 +126,9 @@ function moviesRouteHandler(req, res) {
 function yelpRouteHndler(req, res) {
   let city = req.query.search_query;
   let key = process.env.YELP_API_KEY;
-  let yelpUrl = `https://api.yelp.com/v3/businesses/search?term=resturant&location=${city}`;
+  const numberOfPages = 5;
+  const offset = (req.query.page - 1) * numberOfPages + 1;
+  let yelpUrl = `https://api.yelp.com/v3/businesses/search?term=resturant&location=${city}&limit=${numberOfPages}&offset=${offset}`;
 
   superagent
     .get(yelpUrl)
