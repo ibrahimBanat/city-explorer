@@ -15,18 +15,21 @@ const server = express();
 const PORT = process.env.PORT || 3000;
 const client = new pg.Client({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  // ssl: {
+  //   rejectUnauthorized: false,
+  // },
 });
 
 server.use(cors());
 const superagent = require('superagent');
+const { search } = require('superagent');
 //routes
 server.get('/', rootRouteHandler);
 server.get('/location', locationRouteHandler);
 server.get('/weather', weatherRouteHandler);
 server.get('/parks', parksRouteHandler);
+server.get('/movies', moviesRouteHandler);
+server.get('/yelp', yelpRouteHndler);
 server.get('*', errorRouteHandler);
 
 function rootRouteHandler(req, res) {
@@ -48,10 +51,8 @@ function locationRouteHandler(req, res) {
     if (result.rows.length > 0) {
       //database
 
-      console.log('exists');
       res.send(result.rows[0]);
     } else {
-      console.log('not exists');
       //api
       let key = process.env.GEOCODE_API_KEY;
       let locationUrl = `https://eu1.locationiq.com/v1/search.php?key=${key}&q=${cityQuery}&format=json`;
@@ -109,6 +110,37 @@ function parksRouteHandler(req, res) {
     res.send(arr);
   });
 }
+
+function moviesRouteHandler(req, res) {
+  // https://api.themoviedb.org/3/movie/550?api_key=73b93cdfca2e825942947127fcf95717
+  let cityQuery = req.query.search_query;
+  let key = process.env.MOVIE_API_KEY;
+  let moviesURL = `https://api.themoviedb.org/3/search/movie?api_key=${key}&query=${cityQuery}`;
+  superagent.get(moviesURL).then(moviesData => {
+    let moviesArray = moviesData.body.results.map(item => {
+      return new Movie(item);
+    });
+    res.send(moviesArray);
+  });
+}
+function yelpRouteHndler(req, res) {
+  let city = req.query.search_query;
+  let key = process.env.YELP_API_KEY;
+  const numberOfPages = 5;
+  const offset = (req.query.page - 1) * numberOfPages + 1;
+  let yelpUrl = `https://api.yelp.com/v3/businesses/search?term=resturant&location=${city}&limit=${numberOfPages}&offset=${offset}`;
+
+  superagent
+    .get(yelpUrl)
+    .set('Authorization', `Bearer ${key}`)
+    .then(yelpItem => {
+      let yelpResponse = yelpItem.body.businesses.map(obj => {
+        return new Yelp(obj);
+      });
+      res.send(yelpResponse);
+    });
+}
+
 function errorRouteHandler(req, res) {
   let errObject = {
     status: 500,
@@ -133,6 +165,23 @@ const Park = function (parksData) {
   this.fee = parksData.entranceFees[0].cost;
   this.description = parksData.description;
   this.url = parksData.url;
+};
+
+const Movie = function (moviesData) {
+  this.title = moviesData.title;
+  this.overview = moviesData.overview;
+  this.average_votes = moviesData.vote_average;
+  this.total_votes = moviesData.vote_count;
+  this.image_url = moviesData.backdrop_path;
+  this.popularity = moviesData.popularity;
+  this.released_on = moviesData.release_date;
+};
+const Yelp = function (yelpData) {
+  this.name = yelpData.name;
+  this.image_url = yelpData.image_url;
+  this.price = yelpData.price;
+  this.rating = yelpData.rating;
+  this.url = yelpData.url;
 };
 
 // listen to the server
